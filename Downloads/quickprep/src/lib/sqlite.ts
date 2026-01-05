@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-// Create database in prisma folder
+// Always use local SQLite for operations
+// In production on Vercel, we'll use Turso via environment-based routing in API routes
 const dbPath = path.join(process.cwd(), 'prisma', 'dev.db');
 const db = new Database(dbPath);
 

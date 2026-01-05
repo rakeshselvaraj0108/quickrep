@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { userRepository } from '@/lib/userRepository';
+import { userRepository } from '@/lib/supabaseUserRepository';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user by reset token
-    const user = userRepository.findByResetToken(token);
+    const user = await userRepository.findByResetToken(token);
 
     if (!user) {
       console.log('❌ Invalid or expired token');
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     // Update password and clear reset token
     console.log('🔐 Hashing new password...');
-    userRepository.update(user.id, {
+    await userRepository.update(user.id, {
       password,
       resetToken: null,
       resetTokenExpiry: null,

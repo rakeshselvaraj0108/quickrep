@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import { userRepository } from '@/lib/userRepository';
+import { userRepository } from '@/lib/supabaseUserRepository';
 
 // Configure email transporter (using Gmail or your email service)
 const transporter = nodemailer.createTransport({
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const user = userRepository.findByEmail(email);
+    const user = await userRepository.findByEmail(email);
     if (!user) {
       console.log('ℹ️ User not found:', email);
       // For security, don't reveal if user exists
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
 
     // Update user with reset token
-    userRepository.update(user.id, {
+    await userRepository.update(user.id, {
       resetToken,
       resetTokenExpiry,
     });

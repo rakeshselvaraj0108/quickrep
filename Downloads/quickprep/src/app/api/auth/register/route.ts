@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcryptjs from 'bcryptjs';
-import { userRepository } from '@/lib/userRepository';
+import { userRepository } from '@/lib/supabaseUserRepository';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = userRepository.findByEmail(email);
+    const existingUser = await userRepository.findByEmail(email);
     if (existingUser) {
       console.log('❌ Email already exists:', email);
       return NextResponse.json(
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Create new user
     console.log('🔐 Hashing password...');
-    const newUser = userRepository.create({
+    const newUser = await userRepository.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password,

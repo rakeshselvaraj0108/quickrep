@@ -52,11 +52,11 @@ function LoginContent() {
 
       // Store token
       localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       toast.success('Welcome back! Redirecting...');
       
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 500);
+      // Force navigation to dashboard
+      window.location.href = '/dashboard';
     } catch (err) {
       toast.error('An error occurred. Please try again.');
     } finally {

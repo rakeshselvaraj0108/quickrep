@@ -86,7 +86,9 @@ export default function handler(req: NextApiRequest, res: ApiResponse) {
 
       // Handle chat messages
       socket.on('send-message', ({ roomId, message }) => {
-        socket.to(roomId).emit('new-message', message);
+        console.log('💬 Received message for room:', roomId, 'from:', socket.id);
+        // Broadcast to everyone in the room INCLUDING sender
+        io.to(roomId).emit('new-message', message);
       });
 
       // Handle reactions

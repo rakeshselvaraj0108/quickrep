@@ -79,52 +79,50 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStream = useRef<MediaStream | null>(null);
 
-  // Initialize sample rooms
+  // Fetch rooms from database
   useEffect(() => {
-    const sampleRooms: StudyRoom[] = [
-      {
-        id: 'room-1',
-        name: 'Machine Learning Study Group',
-        topic: 'Neural Networks & Deep Learning',
-        participants: 3,
-        maxParticipants: 8,
-        isPrivate: false,
-        host: 'Alex Chen',
-        createdAt: new Date(Date.now() - 1000 * 60 * 30),
-        meetingId: 'ml-2024-001'
-      },
-      {
-        id: 'room-2',
-        name: 'CS Fundamentals',
-        topic: 'Data Structures & Algorithms',
-        participants: 5,
-        maxParticipants: 10,
-        isPrivate: false,
-        host: 'Sarah Johnson',
-        createdAt: new Date(Date.now() - 1000 * 60 * 15),
-        meetingId: 'cs-2024-002'
-      },
-      {
-        id: 'room-3',
-        name: 'Web Development Workshop',
-        topic: 'React & Next.js Advanced Patterns',
-        participants: 2,
-        maxParticipants: 6,
-        isPrivate: true,
-        host: 'Mike Davis',
-        createdAt: new Date(Date.now() - 1000 * 60 * 5),
-        meetingId: 'web-2024-003'
+    const fetchRooms = async () => {
+      try {
+        const response = await fetch('/api/rooms');
+        const data = await response.json();
+        if (data.rooms) {
+          setRooms(data.rooms.map((room: any) => ({
+            id: room.id,
+            name: room.name,
+            topic: room.topic,
+            participants: room.participants || 0,
+            maxParticipants: room.max_participants,
+            isPrivate: room.is_private,
+            host: room.host,
+            createdAt: new Date(room.created_at),
+            meetingId: room.meeting_id
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching rooms:', error);
       }
-    ];
-    setRooms(sampleRooms);
+    };
+
+    fetchRooms();
+    // Refresh rooms every 10 seconds
+    const interval = setInterval(fetchRooms, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   // Initialize socket connection
   useEffect(() => {
     console.log('🔌 CollaborativeRooms component mounted');
     console.log('🔌 Creating socket connection...');
-    const socketConnection = io('http://localhost:3000', {
-      transports: ['websocket', 'polling'],
+    const socketUrl = process.env.NODE_ENV === 'production' 
+      ? (typeof window !== 'undefined' ? window.location.origin : '')
+      : 'http://localhost:3000';
+    console.log('🔌 Connecting to:', socketUrl);
+    const socketConnection = io(socketUrl, {
+      path: '/api/socketio',
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     socketConnection.on('connect', () => {
@@ -269,10 +267,14 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
 
   // Create WebRTC peer connection
   const createPeerConnection = async (userId: string) => {
+    console.log('🔗 Creating peer connection for user:', userId);
     const peerConnection = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
       ],
     });
 
@@ -281,12 +283,14 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
     // Add local stream tracks
     if (localStream.current) {
       localStream.current.getTracks().forEach(track => {
+        console.log('➕ Adding track to peer connection:', track.kind);
         peerConnection.addTrack(track, localStream.current!);
       });
     }
 
     // Handle remote stream
     peerConnection.ontrack = (event) => {
+      console.log('📹 Received remote track:', event.track.kind, 'from:', userId);
       const remoteStream = event.streams[0];
       let videoElement = remoteVideoRefs.current.get(userId);
 
@@ -295,7 +299,9 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
         videoElement.autoplay = true;
         videoElement.playsInline = true;
         videoElement.className = 'remote-video';
+        videoElement.id = `video-${userId}`;
         remoteVideoRefs.current.set(userId, videoElement);
+        console.log('✅ Created video element for user:', userId);
       }
 
       videoElement.srcObject = remoteStream;
@@ -304,14 +310,28 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
     // Handle ICE candidates
     peerConnection.onicecandidate = (event) => {
       if (event.candidate && socket) {
+        console.log('🧊 Sending ICE candidate to:', userId);
         socket.emit('ice-candidate', { to: userId, candidate: event.candidate });
       }
     };
 
-    // Create and send offer if we're the initiator
-    if (socket && socket.id && socket.id < userId) { // Simple initiator logic
+    // Handle connection state changes
+    peerConnection.onconnectionstatechange = () => {
+      console.log('Connection state for', userId, ':', peerConnection.connectionState);
+      if (peerConnection.connectionState === 'failed') {
+        console.log('❌ Connection failed, attempting to restart ICE');
+        peerConnection.restartIce();
+      }
+    };
+
+    // Create and send offer if we're the initiator (lower socket ID initiates)
+    if (socket && socket.id && socket.id < userId) {
+      console.log('📤 Initiating offer to:', userId);
       try {
-        const offer = await peerConnection.createOffer();
+        const offer = await peerConnection.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true
+        });
         await peerConnection.setLocalDescription(offer);
         socket.emit('offer', { to: userId, offer });
       } catch (error) {
@@ -384,7 +404,7 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
   };
 
   // Create room
-  const createRoom = (e: React.FormEvent<HTMLFormElement>) => {
+  const createRoom = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!newRoomName.trim() || !newRoomTopic.trim()) {
@@ -392,36 +412,59 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
       return;
     }
 
-    const newRoom: StudyRoom = {
-      id: `room-${Date.now()}`,
-      name: newRoomName,
-      topic: newRoomTopic,
-      participants: 1, // Creator is the first participant
-      maxParticipants: newRoomMaxParticipants,
-      isPrivate: newRoomIsPrivate,
-      host: currentUser.name,
-      createdAt: new Date(),
-      meetingId: `meeting-${Date.now()}`
-    };
-
-    setRooms(prev => [newRoom, ...prev]);
-    setShowCreateRoom(false);
-    // Reset form
-    setNewRoomName('');
-    setNewRoomTopic('');
-    setNewRoomMaxParticipants(10);
-    setNewRoomIsPrivate(false);
-
-    // Emit room creation to socket server
-    if (socket) {
-      socket.emit('create-room', {
-        roomId: newRoom.id,
-        roomData: newRoom
+    try {
+      // Create room in database
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newRoomName,
+          topic: newRoomTopic,
+          maxParticipants: newRoomMaxParticipants,
+          isPrivate: newRoomIsPrivate,
+          host: currentUser.name,
+          hostId: currentUser.id
+        })
       });
-    }
 
-    // Auto-join the created room
-    joinRoom(newRoom);
+      const data = await response.json();
+      if (data.room) {
+        const newRoom: StudyRoom = {
+          id: data.room.id,
+          name: data.room.name,
+          topic: data.room.topic,
+          participants: 0,
+          maxParticipants: data.room.max_participants,
+          isPrivate: data.room.is_private,
+          host: data.room.host,
+          createdAt: new Date(data.room.created_at),
+          meetingId: data.room.meeting_id
+        };
+
+        setRooms(prev => [newRoom, ...prev]);
+        setShowCreateRoom(false);
+        
+        // Reset form
+        setNewRoomName('');
+        setNewRoomTopic('');
+        setNewRoomMaxParticipants(10);
+        setNewRoomIsPrivate(false);
+
+        // Emit room creation to socket server
+        if (socket) {
+          socket.emit('create-room', {
+            roomId: newRoom.id,
+            roomData: newRoom
+          });
+        }
+
+        // Auto-join the created room
+        joinRoom(newRoom);
+      }
+    } catch (error) {
+      console.error('Error creating room:', error);
+      alert('Failed to create room. Please try again.');
+    }
   };
 
   // Leave room
@@ -573,14 +616,12 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
     if (chatInput.trim() && currentRoom && socket) {
       const message: ChatMessage = {
         id: Date.now(),
-        userId: currentUser.id,
+        userId: socket.id || currentUser.id,
         userData: currentUser,
         message: chatInput,
         timestamp: new Date(),
       };
-      // Add to local state immediately
-      setChatMessages(prev => [...prev, message]);
-      // Emit to other participants
+      // Emit to all participants (including self via server broadcast)
       socket.emit('send-message', { roomId: currentRoom.id, message });
       setChatInput('');
     }
