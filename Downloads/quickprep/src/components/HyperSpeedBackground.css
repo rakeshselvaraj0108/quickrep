@@ -1,0 +1,57 @@
+.hyperspeed-container {
+  width: 100%;
+  height: 400px;
+  overflow: hidden;
+  position: relative;
+  background: #0b0e14;
+  z-index: 1;
+}
+
+.hyperspeed-container canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Fullscreen mode for dashboard backgrounds */
+.hyperspeed-container[style*="100vh"],
+.hyperspeed-container[style*="100%"] {
+  height: 100%;
+  min-height: 100vh;
+}
+
+/* Optional: Add blur effect to entire container for motion blur effect */
+@media (prefers-reduced-motion: no-preference) {
+  .hyperspeed-container {
+    /* Subtle background blur for depth effect */
+    filter: blur(0px);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hyperspeed-container {
+    height: 300px;
+  }
+
+  .hyperspeed-container[style*="100vh"],
+  .hyperspeed-container[style*="100%"] {
+    height: 100%;
+    min-height: 100vh;
+  }
+}
+
+@media (max-width: 480px) {
+  .hyperspeed-container {
+    height: 200px;
+  }
+
+  .hyperspeed-container[style*="100vh"],
+  .hyperspeed-container[style*="100%"] {
+    height: 100%;
+    min-height: 100vh;
+  }
+}
