@@ -93,13 +93,13 @@ async function callGemini(prompt: string, retries = 3): Promise<string> {
 
 function getFallbackResponse(prompt: string, mode: string): string {
   const baseMessage = `⚠️ AI Service Temporarily Unavailable\n\n` +
-    `The Google Gemini API is currently experiencing high load or quota limits.\n` +
-    `Your API key (${process.env.GEMINI_API_KEY?.slice(0, 10)}...) is valid.\n\n` +
-    `✅ What to do:\n` +
-    `1. Wait 10-30 seconds and try again\n` +
-    `2. Check your API quota at: https://aistudio.google.com/app/apikey\n` +
-    `3. Free tier: 20 requests/day for gemini-2.5-flash\n\n` +
-    `💡 The fallback content below is generated locally until the API recovers.\n\n`;
+    `The Google Gemini API is currently experiencing high load or quota limits.\n\n` +
+    `✅ Quick Solutions:\n` +
+    `1. 🔄 Refresh and try again in 30 seconds\n` +
+    `2. 🔑 Check your API quota: https://aistudio.google.com/app/apikey\n` +
+    `3. 💳 Upgrade plan for unlimited requests\n` +
+    `4. ⏰ Free tier resets every 24 hours\n\n` +
+    `📝 Note: Fallback content is generated locally while we reconnect.\n\n`;
 
   if (mode === 'study-plan') {
     return baseMessage + 

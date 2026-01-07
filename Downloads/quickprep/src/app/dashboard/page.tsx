@@ -166,13 +166,23 @@ export default function Dashboard() {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate content';
       setError(errorMessage);
       
-      // Show user-friendly error messages
+      // Show user-friendly error messages with solutions
       if (errorMessage.includes('quota exceeded') || errorMessage.includes('429')) {
-        toast.error('⏱️ Daily API limit reached (20/day). Try again tomorrow or upgrade your API key!');
-      } else if (errorMessage.includes('503') || errorMessage.includes('overloaded')) {
-        toast.error('⏱️ Gemini API is busy. Wait 30 seconds and try again!');
+        toast.error('📊 Daily API limit reached (20 requests/day free tier). Your fallback content is ready!', {
+          duration: 5000,
+          description: 'Upgrade at https://aistudio.google.com to get unlimited requests'
+        });
+      } else if (errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('Unavailable')) {
+        toast.error('🔄 Gemini API is temporarily busy. Retrying...', {
+          duration: 3000,
+          description: 'Try again in 30 seconds'
+        });
+      } else if (errorMessage.includes('timeout')) {
+        toast.error('⏱️ Request timed out. Try with shorter content.', {
+          duration: 4000
+        });
       } else {
-        toast.error(errorMessage);
+        toast.error('Error: ' + errorMessage.slice(0, 100));
       }
     } finally {
       setIsLoading(false);
