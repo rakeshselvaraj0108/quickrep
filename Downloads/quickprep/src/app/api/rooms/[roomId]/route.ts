@@ -3,10 +3,10 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { roomId: string } }
+  { params }: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    const roomId = params.roomId;
+    const { roomId } = await params;
 
     const { data: room, error } = await supabase
       .from('rooms')
@@ -28,10 +28,10 @@ export async function GET(
 // PATCH - Update room (e.g., increment participants)
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { roomId: string } }
+  { params }: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    const roomId = params.roomId;
+    const { roomId } = await params;
     const body = await req.json();
     const { participants } = body;
 
