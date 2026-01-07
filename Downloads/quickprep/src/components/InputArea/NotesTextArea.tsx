@@ -264,86 +264,10 @@ const NotesTextArea: React.FC<NotesTextAreaProps> = ({
           }}  /* INLINE FORCE */
           aria-label="Lecture notes input"
         />
-        {isSupported && (
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={`voice-input-btn ${isListening ? 'listening' : ''}`}
-              onClick={startVoiceInput}
-              disabled={disabled}
-              title={isListening ? 'Stop voice input' : 'Start voice input'}
-              aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-              onMouseEnter={() => console.log('🎤 Microphone button hovered')}
-              onMouseLeave={() => console.log('🎤 Microphone button mouse left')}
-            >
-              {isListening ? '🎙️' : '🎤'}
-            </button>
-            <div style={{
-              position: 'absolute',
-              top: '-5px',
-              right: '-5px',
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: '#f59e0b',
-              border: '2px solid #0a0a19',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '6px',
-              color: 'white',
-              fontWeight: 'bold'
-            }} title="Voice input supported - click to test">
-              ?
-            </div>
-          </div>
-        )}
-        {!isSupported && (
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className="voice-input-btn"
-              disabled={true}
-              title="Voice input not supported in this browser. Try Chrome, Edge, or Safari."
-              aria-label="Voice input not supported"
-              style={{ opacity: 0.5, cursor: 'not-allowed' }}
-            >
-              🎤
-            </button>
-            <div style={{
-              position: 'absolute',
-              top: '-5px',
-              right: '-5px',
-              width: '12px',
-              height: '12px',
-              borderRadius: '50%',
-              backgroundColor: '#ef4444',
-              border: '2px solid #0a0a19',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '8px',
-              color: 'white',
-              fontWeight: 'bold'
-            }} title="Voice input not supported in this browser">
-              ✕
-            </div>
-          </div>
-        )}
       </div>
       <div className="notes-meta">
         <span id="notes-helper" className="helper-text">
           Longer, more detailed notes lead to better summaries, questions, and study plans.
-          {isSupported && (
-            <span className="voice-notice">
-              {' '}🎤 Voice input requires microphone permissions.
-            </span>
-          )}
-          {!isSupported && (
-            <span className="voice-notice">
-              {' '}🎤 Voice input requires Chrome, Edge, or Safari.
-            </span>
-          )}
         </span>
         <span
           id="notes-counter"

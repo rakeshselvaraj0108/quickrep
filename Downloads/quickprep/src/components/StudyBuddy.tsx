@@ -96,18 +96,36 @@ const StudyBuddy: React.FC<StudyBuddyProps> = ({
   useEffect(() => {
     const initializeWelcome = async () => {
       try {
+        // Properly serialize generatedContent
+        const contextString = generatedContent 
+          ? (typeof generatedContent === 'string' 
+              ? generatedContent 
+              : JSON.stringify(generatedContent))
+          : undefined;
+
         const data = await sendStudyBuddyMessage({
           type: 'welcome',
           userName,
           studyStreak: stats.studyStreak,
           totalStudyTime: stats.totalStudyTime,
-          completedTasks: stats.completedTasks
+          completedTasks: stats.completedTasks,
+          context: contextString
         });
 
         setConnectionStatus('connected');
+        
+        // Create context-aware welcome message
+        let welcomeText = data.message || `Hey ${userName}! 👋 I'm your AI Study Buddy.`;
+        
+        if (generatedContent) {
+          welcomeText += ` I can see you've generated some content in ${generationMode || 'study'} mode. Ask me anything about it, or use the quick action buttons below! 🚀`;
+        } else {
+          welcomeText += ` Generate some content first, then I'll help you understand it better! 📚`;
+        }
+
         const welcomeMessage: Message = {
           id: Date.now().toString(),
-          text: data.message || `Hey ${userName}! 👋 I'm your AI Study Buddy. Let's crush your learning goals together!`,
+          text: welcomeText,
           type: 'buddy',
           timestamp: new Date(),
           emotion: data.emotion || 'excited'
@@ -116,9 +134,17 @@ const StudyBuddy: React.FC<StudyBuddyProps> = ({
       } catch (error) {
         console.warn('StudyBuddy connection error:', error);
         setConnectionStatus('connecting');
+        
+        let fallbackText = `Hey ${userName}! 👋 I'm your AI Study Buddy.`;
+        if (generatedContent) {
+          fallbackText += ` I can see your ${generationMode || 'study'} content! Ask me anything about it! 🎓`;
+        } else {
+          fallbackText += ` Generate some content and I'll help you master it! 💡`;
+        }
+        
         const welcomeMessage: Message = {
           id: Date.now().toString(),
-          text: `Hey ${userName}! 👋 I'm your AI Study Buddy. Ready to make learning awesome? Let's go!`,
+          text: fallbackText,
           type: 'buddy',
           timestamp: new Date(),
           emotion: 'excited'
@@ -146,10 +172,17 @@ const StudyBuddy: React.FC<StudyBuddyProps> = ({
     setIsTyping(true);
 
     try {
+      // Properly serialize generatedContent
+      const contextString = generatedContent 
+        ? (typeof generatedContent === 'string' 
+            ? generatedContent 
+            : JSON.stringify(generatedContent))
+        : undefined;
+
       const data = await sendStudyBuddyMessage({
         type: 'response',
         userMessage: questionInput,
-        context: generatedContent,
+        context: contextString,
         mode: generationMode,
         userName
       });
@@ -186,6 +219,16 @@ const StudyBuddy: React.FC<StudyBuddyProps> = ({
 
   // Generate fallback responses
   const generateFallbackResponse = (question: string): string => {
+    // If we have generated content, make fallback context-aware
+    if (generatedContent) {
+      const contentPreview = typeof generatedContent === 'string' 
+        ? generatedContent.substring(0, 80)
+        : JSON.stringify(generatedContent).substring(0, 80);
+      
+      return `Great question about the content! 📚 Looking at what you're studying ("${contentPreview}..."), I can help with that. ${question.toLowerCase().includes('explain') ? 'Let me break this down for you.' : question.toLowerCase().includes('example') ? 'I can provide examples to illustrate this.' : 'What specific part would you like to explore?'}`;
+    }
+
+    // Generic fallback if no content
     const responses = [
       `Great question! 🎯 Let me help you with that. ${question.includes('?') ? 'This is a common topic in successful studying.' : ''}`,
       `That's exactly the kind of thinking that leads to success! 💡 Here's what I suggest...`,
@@ -229,10 +272,17 @@ const StudyBuddy: React.FC<StudyBuddyProps> = ({
     setIsTyping(true);
 
     try {
+      // Properly serialize generatedContent
+      const contextString = generatedContent 
+        ? (typeof generatedContent === 'string' 
+            ? generatedContent 
+            : JSON.stringify(generatedContent))
+        : undefined;
+
       const data = await sendStudyBuddyMessage({
         type: (contentTypeMap[action] || 'content_explain') as 'content_explain' | 'content_examples' | 'content_quiz' | 'content_summary' | 'content_relate' | 'content_deepen',
         userMessage: `${action} this content`,
-        context: generatedContent,
+        context: contextString,
         mode: generationMode
       });
 
@@ -314,7 +364,13 @@ const StudyBuddy: React.FC<StudyBuddyProps> = ({
           <div className="buddy-info-pro">
             <h3>Study Buddy AI</h3>
             <p className="buddy-status-text">
-              {connectionStatus === 'connected' ? '✓ Ready to help' : '◐ Connecting...'}
+              {connectionStatus === 'connected' ? (
+                generatedContent ? (
+                  <span>✓ Connected • <span style={{color: '#10b981'}}>Content Loaded</span></span>
+                ) : (
+                  '✓ Ready to help'
+                )
+              ) : '◐ Connecting...'}
             </p>
           </div>
         </div>

@@ -23,7 +23,9 @@ import AchievementsPanel from '../../components/Achievements/AchievementsPanel';
 import HistoryPanel from '../../components/History/HistoryPanel';
 import AutoSave from '../../components/AutoSave/AutoSave';
 import SmartSuggestions from '../../components/Suggestions/SmartSuggestions';
+import VideoLecture from '../../components/VideoLecture';
 import { useToast } from '@/components/Toast/ToastContainer';
+import { useLiveStats } from '../../lib/stats';
 import { GenerationMode, Flashcard as FlashcardType, Quiz as QuizType, MindMap as MindMapType } from '../../types/ai';
 import { generateContent } from '../../lib/apiClient';
 
@@ -34,6 +36,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
   const [notes, setNotes] = useState<string>('');
   const [mode, setMode] = useState<GenerationMode>('summary');
+  const [theme, setTheme] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -46,8 +49,24 @@ export default function Dashboard() {
   const [completedTasks, setCompletedTasks] = useState(0);
   const [showStudyBuddy, setShowStudyBuddy] = useState(false);
   const [showCollabRooms, setShowCollabRooms] = useState(false);
+  const [showVideoLecture, setShowVideoLecture] = useState(false);
   const router = useRouter();
   const toast = useToast();
+  const { recordGeneration } = useLiveStats();
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || '';
+    setTheme(savedTheme);
+  }, []);
+
+  useEffect(() => {
+    if (theme === '') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -79,12 +98,16 @@ export default function Dashboard() {
     setResult('');
 
     toast.info('Generating content...');
+    const startTime = Date.now();
 
     try {
       const response = await generateContent({
         content: notes,
         mode: mode
       });
+      
+      const duration = Date.now() - startTime;
+      const success = !!response.result || !!response.flashcards || !!response.quiz || !!response.mindmap;
       
       console.log('📦 API Response:', response);
       
@@ -136,10 +159,21 @@ export default function Dashboard() {
       const totalGens = parseInt(localStorage.getItem('totalGenerations') || '0') + 1;
       localStorage.setItem('totalGenerations', totalGens.toString());
       
+      // Record stats
+      await recordGeneration(mode, duration, success);
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate content';
       setError(errorMessage);
-      toast.error(errorMessage);
+      
+      // Show user-friendly error messages
+      if (errorMessage.includes('quota exceeded') || errorMessage.includes('429')) {
+        toast.error('⏱️ Daily API limit reached (20/day). Try again tomorrow or upgrade your API key!');
+      } else if (errorMessage.includes('503') || errorMessage.includes('overloaded')) {
+        toast.error('⏱️ Gemini API is busy. Wait 30 seconds and try again!');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -186,6 +220,17 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="header-actions">
+            <div className="theme-toggle">
+              <button onClick={() => setTheme('')} className={`theme-btn ${theme === '' ? 'active' : ''}`} title="Cosmic Theme">
+                🌌
+              </button>
+              <button onClick={() => setTheme('light')} className={`theme-btn ${theme === 'light' ? 'active' : ''}`} title="Light Theme">
+                ☀️
+              </button>
+              <button onClick={() => setTheme('dark')} className={`theme-btn ${theme === 'dark' ? 'active' : ''}`} title="Dark Theme">
+                🌙
+              </button>
+            </div>
             <div className="user-info">
               <span className="user-name">Welcome, {user?.name}!</span>
             </div>
@@ -271,6 +316,16 @@ export default function Dashboard() {
                   <div className="btn-text">
                     <strong>Google Meet Rooms</strong>
                     <small>Study with friends online</small>
+                  </div>
+                </button>
+                <button 
+                  className="action-btn video-btn"
+                  onClick={() => setShowVideoLecture(true)}
+                >
+                  <span className="btn-icon">🎥</span>
+                  <div className="btn-text">
+                    <strong>Video Lectures</strong>
+                    <small>Learn from YouTube videos</small>
                   </div>
                 </button>
               </div>
@@ -369,6 +424,11 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Video Lecture Modal */}
+        {showVideoLecture && (
+          <VideoLecture onClose={() => setShowVideoLecture(false)} />
+        )}
       </main>
 
       <style jsx global>{`
@@ -452,7 +512,7 @@ export default function Dashboard() {
         .logo {
           font-size: 20px;
           font-weight: 700;
-          color: white;
+          color: var(--text-primary);
           text-decoration: none;
           display: flex;
           align-items: center;
@@ -468,6 +528,43 @@ export default function Dashboard() {
           align-items: center;
           gap: 24px;
         }
+        .theme-toggle {
+          display: flex;
+          gap: 8px;
+          padding: 4px;
+          background: rgba(102, 126, 234, 0.1);
+          border-radius: 12px;
+          border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .theme-btn {
+          padding: 8px 12px;
+          background: rgba(102, 126, 234, 0.2);
+          border: 1px solid rgba(102, 126, 234, 0.3);
+          border-radius: 8px;
+          font-size: 18px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .theme-btn:hover {
+          background: rgba(102, 126, 234, 0.4);
+          transform: scale(1.1);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .theme-btn:active {
+          transform: scale(0.95);
+        }
+
+        .theme-btn.active {
+          background: rgba(102, 126, 234, 0.6);
+          box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+          border-color: rgba(102, 126, 234, 0.6);
+        }
 
         .user-name {
           font-size: 14px;
@@ -477,7 +574,7 @@ export default function Dashboard() {
         .logout-btn {
           padding: 8px 16px;
           background: linear-gradient(135deg, #ef4444, #dc2626);
-          color: #ffffff;
+          color: var(--text-primary);
           border: 1px solid #ef4444;
           border-radius: 6px;
           font-size: 13px;
@@ -528,7 +625,7 @@ export default function Dashboard() {
           font-size: 20px;
           font-weight: 700;
           margin-bottom: 16px;
-          color: white;
+          color: var(--text-primary);
         }
 
         .section-card h3 {
@@ -568,7 +665,7 @@ export default function Dashboard() {
           font-size: 20px;
           font-weight: 700;
           margin-bottom: 20px;
-          color: white;
+          color: var(--text-primary);
         }
 
         .quick-actions {
@@ -583,7 +680,7 @@ export default function Dashboard() {
           background: linear-gradient(135deg, #667eea, #764ba2);
           border: 1px solid #667eea;
           border-radius: 12px;
-          color: white;
+          color: var(--text-primary);
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
@@ -616,6 +713,17 @@ export default function Dashboard() {
           background: linear-gradient(135deg, #2563eb, #1d4ed8);
           box-shadow: 0 8px 24px rgba(59, 130, 246, 0.6);
         }
+
+        .video-btn {
+          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+          border: 1px solid #8b5cf6;
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        }
+
+        .video-btn:hover {
+          background: linear-gradient(135deg, #7c3aed, #6d28d9);
+          box-shadow: 0 8px 24px rgba(139, 92, 246, 0.6);
+        }
         }
 
         .btn-icon {
@@ -631,7 +739,7 @@ export default function Dashboard() {
 
         .btn-text strong {
           font-size: 15px;
-          color: white;
+          color: var(--text-primary);
           display: block;
         }
 
@@ -674,7 +782,7 @@ export default function Dashboard() {
           right: 16px;
           background: linear-gradient(135deg, #ef4444, #dc2626);
           border: 2px solid #ef4444;
-          color: #ffffff;
+          color: var(--text-primary);
           width: 40px;
           height: 40px;
           border-radius: 50%;

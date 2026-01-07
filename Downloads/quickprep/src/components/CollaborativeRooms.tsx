@@ -250,16 +250,28 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
     };
   }, []);
 
-  // Auto-join room from URL parameter
+  // Auto-join room from URL parameter or path
   useEffect(() => {
-    if (typeof window !== 'undefined' && rooms.length > 0) {
+    if (typeof window !== 'undefined' && rooms.length > 0 && !isInRoom) {
+      // Check query parameter first (legacy support)
       const params = new URLSearchParams(window.location.search);
-      const roomId = params.get('room');
+      let roomId = params.get('room');
       
-      if (roomId && !isInRoom) {
+      // Check URL path (/meet/[roomId])
+      if (!roomId) {
+        const pathMatch = window.location.pathname.match(/\/meet\/([^/]+)/);
+        if (pathMatch) {
+          roomId = pathMatch[1];
+        }
+      }
+      
+      if (roomId) {
         const room = rooms.find(r => r.id === roomId);
         if (room) {
+          console.log('🎯 Auto-joining room from URL:', roomId);
           joinRoom(room);
+        } else {
+          console.warn('⚠️ Room not found:', roomId);
         }
       }
     }
@@ -781,11 +793,12 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
                 <p>{currentRoom.topic}</p>
                 <div className="meeting-link-container">
                   <span className="meeting-id">
-                    Meeting Link: {window.location.origin}?room={currentRoom.id}
+                    Meeting Link: {process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/meet/{currentRoom.id}
                   </span>
                   <button
                     onClick={() => {
-                      const roomUrl = `${window.location.origin}?room=${currentRoom.id}`;
+                      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+                      const roomUrl = `${baseUrl}/meet/${currentRoom.id}`;
                       navigator.clipboard.writeText(roomUrl);
                       alert('Meeting link copied to clipboard!');
                     }}
@@ -799,7 +812,8 @@ const CollaborativeRooms: React.FC<CollaborativeRoomsProps> = ({
               <div className="meeting-controls">
                 <button
                   onClick={() => {
-                    const roomUrl = `${window.location.origin}?room=${currentRoom.id}`;
+                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+                    const roomUrl = `${baseUrl}/meet/${currentRoom.id}`;
                     navigator.clipboard.writeText(roomUrl);
                     alert('Meeting link copied to clipboard!');
                   }}

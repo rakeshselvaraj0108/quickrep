@@ -3567,3 +3567,112 @@ body {
   width: 100%;
   height: 100%;
 }
+
+/* 🎨 DARK MODE - FIX INVISIBLE WHITE TEXT */
+/* Override all hardcoded white colors to use proper contrasting colors */
+
+button {
+  color: inherit;
+}
+
+/* Buttons with white text on colored backgrounds */
+button:not(.secondary-button) {
+  color: var(--text-primary) !important;
+}
+
+/* Fix buttons with hard-coded white */
+.export-buttons button,
+.action-btn,
+.primary-button {
+  color: var(--text-primary) !important;
+}
+
+/* Fix modal and dialog text */
+.modal-content {
+  color: var(--text-primary);
+}
+
+/* Fix all form labels and inputs */
+label {
+  color: var(--text-primary) !important;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  color: var(--text-primary) !important;
+  background: var(--color-surface) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+/* Fix placeholder text visibility */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 0.8;
+}
+
+/* Fix text in panels and cards */
+.result-pre,
+.code-block {
+  color: var(--text-primary) !important;
+}
+
+/* Export button text visibility */
+.export-button-menu-item,
+.export-menu-item {
+  color: var(--text-secondary) !important;
+}
+
+.export-button-menu-item:hover {
+  color: var(--text-primary) !important;
+}
+
+/* Fix all headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+}
+
+/* Make sure paragraphs are readable */
+p {
+  color: var(--text-primary);
+}
+
+/* Fix span and div text - removed empty ruleset */
+
+/* Ensure all text on dark backgrounds is readable */
+@media (prefers-color-scheme: dark) {
+  * {
+    color: var(--text-primary);
+  }
+
+  /* Specific overrides for known problem areas */
+  .stats-label,
+  .chart-label,
+  .tooltip {
+    color: var(--text-primary) !important;
+  }
+
+  /* Export button dropdown */
+  .export-dropdown,
+  .export-menu {
+    background: var(--color-surface) !important;
+    border: 1px solid rgba(139, 92, 246, 0.3) !important;
+  }
+
+  .export-dropdown button,
+  .export-menu button {
+    color: var(--text-secondary) !important;
+    background: transparent !important;
+  }
+
+  .export-dropdown button:hover,
+  .export-menu button:hover {
+    color: var(--text-primary) !important;
+    background: rgba(139, 92, 246, 0.2) !important;
+  }
+}
+

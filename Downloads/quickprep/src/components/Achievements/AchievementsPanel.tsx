@@ -33,7 +33,7 @@ export default function AchievementsPanel() {
       onClick={() => router.push('/achievements' as any)}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
-      className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-yellow-500 to-orange-500 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-2xl hover:shadow-3xl transition-shadow"
+      className="fixed bottom-6 right-6 z-30 bg-gradient-to-r from-yellow-500 to-orange-500 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-2xl hover:shadow-3xl transition-shadow"
       title="View Achievements"
     >
       <span>🏆</span>

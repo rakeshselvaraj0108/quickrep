@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { Server as ServerIO } from 'socket.io';
 import { Server as NetServer } from 'http';
-// import { initSocket } from '../../lib/socket';
+import { createClient } from '@supabase/supabase-js';
 
 interface SocketServer extends NetServer {
   io?: ServerIO;
@@ -12,6 +12,12 @@ interface ApiResponse extends NextApiResponse {
 }
 
 let io: ServerIO;
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);
 
 export default function handler(req: NextApiRequest, res: ApiResponse) {
   console.log('🔌 Socket.io API route called with method:', req.method);
@@ -40,7 +46,7 @@ export default function handler(req: NextApiRequest, res: ApiResponse) {
       console.log('🔌 User connected:', socket.id);
 
       // Join room
-      socket.on('join-room', ({ roomId, userData }) => {
+      socket.on('join-room', async ({ roomId, userData }) => {
         socket.join(roomId);
 
         // Add participant to room
@@ -57,6 +63,17 @@ export default function handler(req: NextApiRequest, res: ApiResponse) {
           joinedAt: Date.now(),
         });
 
+        // Update participant count in database
+        const participantCount = rooms.get(roomId).size;
+        try {
+          await supabase
+            .from('rooms')
+            .update({ participants: participantCount })
+            .eq('id', roomId);
+        } catch (error) {
+          console.error('Error updating participant count:', error);
+        }
+
         // Notify others in room
         socket.to(roomId).emit('user-joined', {
           userId: socket.id,
@@ -69,6 +86,8 @@ export default function handler(req: NextApiRequest, res: ApiResponse) {
           .filter(Boolean);
 
         socket.emit('room-participants', roomParticipants);
+        
+        console.log(`✅ ${userData.name} joined room ${roomId} (${participantCount} participants)`);
       });
 
       // Handle WebRTC signaling
@@ -108,24 +127,78 @@ export default function handler(req: NextApiRequest, res: ApiResponse) {
         }
       });
 
+      // Handle leave room
+      socket.on('leave-room', async ({ roomId }) => {
+        console.log(`🚪 User ${socket.id} leaving room ${roomId}`);
+        
+        // Leave the socket room
+        socket.leave(roomId);
+
+        // Remove from room participants
+        if (rooms.has(roomId)) {
+          const roomParticipants = rooms.get(roomId);
+          roomParticipants.delete(socket.id);
+
+          // Notify others
+          socket.to(roomId).emit('user-left', {
+            userId: socket.id,
+          });
+
+          // Update participant count in database
+          const participantCount = roomParticipants.size;
+          try {
+            await supabase
+              .from('rooms')
+              .update({ participants: participantCount })
+              .eq('id', roomId);
+          } catch (error) {
+            console.error('Error updating participant count on leave:', error);
+          }
+
+          // Clean up empty room
+          if (roomParticipants.size === 0) {
+            rooms.delete(roomId);
+            console.log(`🧹 Room ${roomId} is now empty and cleaned up`);
+          }
+        }
+
+        // Remove participant data if not in any other rooms
+        const participant = participants.get(socket.id);
+        if (participant && participant.roomId === roomId) {
+          participants.delete(socket.id);
+        }
+      });
+
       // Handle disconnect
-      socket.on('disconnect', () => {
+      socket.on('disconnect', async () => {
         console.log('🔌 User disconnected:', socket.id);
 
         // Remove from all rooms
-        rooms.forEach((roomParticipants, roomId) => {
+        for (const [roomId, roomParticipants] of rooms.entries()) {
           if (roomParticipants.has(socket.id)) {
             roomParticipants.delete(socket.id);
             socket.to(roomId).emit('user-left', {
               userId: socket.id,
             });
 
+            // Update participant count in database
+            const participantCount = roomParticipants.size;
+            try {
+              await supabase
+                .from('rooms')
+                .update({ participants: participantCount })
+                .eq('id', roomId);
+            } catch (error) {
+              console.error('Error updating participant count on disconnect:', error);
+            }
+
             // If room is empty, clean it up
             if (roomParticipants.size === 0) {
               rooms.delete(roomId);
+              console.log(`🧹 Room ${roomId} is now empty and cleaned up`);
             }
           }
-        });
+        }
 
         participants.delete(socket.id);
       });

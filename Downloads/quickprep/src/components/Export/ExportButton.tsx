@@ -124,7 +124,7 @@ export default function ExportButton({ content, mode, filename }: ExportButtonPr
             className="absolute right-0 top-12 w-56 bg-slate-900 border border-purple-500/30 rounded-xl shadow-2xl z-50 overflow-hidden"
           >
             <div className="p-2">
-              <p className="text-xs text-gray-400 px-3 py-2 font-semibold">EXPORT AS</p>
+              <p className="text-xs text-slate-300 px-3 py-2 font-semibold">EXPORT AS</p>
               
               {[
                 { icon: '📄', label: 'Plain Text (.txt)', action: exportAsText },
@@ -138,7 +138,7 @@ export default function ExportButton({ content, mode, filename }: ExportButtonPr
                   onClick={item.action}
                   whileHover={{ scale: 1.02, x: 5 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm text-gray-300 hover:bg-purple-600/20 hover:text-white transition-all"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm text-slate-200 hover:bg-purple-600/30 hover:text-white transition-all"
                 >
                   <span className="text-lg">{item.icon}</span>
                   <span>{item.label}</span>

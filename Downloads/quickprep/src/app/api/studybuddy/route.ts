@@ -46,10 +46,10 @@ async function callGeminiForStudyBuddy(prompt: string): Promise<string> {
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.8,
+            temperature: 0.7,
             topK: 40,
-            topP: 0.9,
-            maxOutputTokens: 500,
+            topP: 0.95,
+            maxOutputTokens: 1024,
           },
         }),
         signal: AbortSignal.timeout(15000)
@@ -67,7 +67,7 @@ async function callGeminiForStudyBuddy(prompt: string): Promise<string> {
       // For temporary service issues, rate limits, server errors, or model not found, use fallback
       if (response.status === 503 || response.status === 429 || response.status >= 500 || response.status === 404) {
         console.warn(`Gemini API issue (${response.status}), using fallback response`);
-        return getFallbackResponse('response');
+        return getFallbackResponse('response', undefined, undefined);
       }
 
       throw new Error(`Gemini API error: ${response.status} - ${response.statusText}`);
@@ -79,7 +79,7 @@ async function callGeminiForStudyBuddy(prompt: string): Promise<string> {
     } catch (parseError) {
       console.error('Failed to parse Gemini API response as JSON:', parseError);
       console.error('Raw response text:', await response.text());
-      return getFallbackResponse('response');
+      return getFallbackResponse('response', undefined, undefined);
     }
 
     console.log('Gemini API response received:', {
@@ -92,18 +92,24 @@ async function callGeminiForStudyBuddy(prompt: string): Promise<string> {
 
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
       console.warn('Unexpected Gemini API response structure:', data);
-      return getFallbackResponse('response');
+      return getFallbackResponse('response', undefined, undefined);
     }
 
-    return data.candidates[0].content.parts[0].text || getFallbackResponse('response');
+    return data.candidates[0].content.parts[0].text || getFallbackResponse('response', undefined, undefined);
   } catch (error) {
     console.error('Study Buddy API error:', error);
     // Always return a fallback response instead of throwing
-    return getFallbackResponse('response');
+    return getFallbackResponse('response', undefined, undefined);
   }
 }
 
-function getFallbackResponse(type: string): string {
+function getFallbackResponse(type: string, context?: string, userMessage?: string): string {
+  // Context-aware fallback responses when quota is exceeded
+  if (context && type === 'response') {
+    const contentPreview = context.substring(0, 100);
+    return `I'd love to help you understand this! Based on the content you're studying ("${contentPreview}..."), ${userMessage ? `regarding "${userMessage}"` : 'here\'s my insight'}: This is a key concept worth exploring. Try breaking it down into smaller parts, and feel free to ask specific questions! 📚`;
+  }
+
   const fallbacks = {
     motivation: [
       "You're doing amazing! Keep up the great work! 💪",
@@ -112,10 +118,10 @@ function getFallbackResponse(type: string): string {
       "Remember why you started - you're capable of great things! 🌟"
     ],
     response: [
-      "That's a great question! I'm here to help you understand it better.",
-      "I love that you're engaging with the material! Let's break this down.",
-      "You're asking the right questions - that's how we learn! 🤔",
-      "Great curiosity! Let me help you explore this concept."
+      "That's a great question! I'm here to help you understand it better. Can you tell me more about what you're studying?",
+      "I love that you're engaging with the material! Let's break this down together.",
+      "You're asking the right questions - that's how we learn! 🤔 What specific part can I clarify?",
+      "Great curiosity! I'm ready to help you explore this concept in depth."
     ],
     welcome: [
       "Welcome back! Ready to continue your learning journey? 📚",
@@ -153,22 +159,30 @@ Make it encouraging, specific to their progress, and keep it under 100 words. Be
 function generateResponsePrompt(data: StudyBuddyRequest): string {
   const { userMessage = '', userName = 'Student', context = '' } = data;
 
-  return `You are an expert AI Study Buddy having a conversation with a student named ${userName}.
+  return `You are an expert AI Study Buddy with deep knowledge across all subjects, having a conversation with ${userName}.
 
 Student's question/message: "${userMessage}"
 
-${context ? `Content they're studying: ${context}` : ''}
+${context ? `Study content context: ${context}` : ''}
 
-Your task:
-1. Directly answer their question or respond to their statement
-2. Be clear, concise, and educational
-3. If they're asking about a topic, explain it in a way that helps them learn
-4. Include practical examples when relevant
-5. Offer follow-up learning suggestions if appropriate
-6. Keep a friendly, encouraging, supportive tone
-7. Keep your response under 200 words
+Provide a comprehensive, well-structured response that:
 
-Respond naturally like ChatGPT - direct answers first, then explanation and tips.`;
+1. **Direct Answer**: Start with a clear, direct answer to their question
+2. **Detailed Explanation**: Break down the concept into digestible parts with:
+   - Key points numbered or bulleted
+   - Clear definitions of important terms
+   - Step-by-step logic when explaining processes
+3. **Concrete Examples**: Include 1-2 real-world examples that make the concept tangible
+4. **Visual Mental Models**: Help them visualize the concept with analogies or comparisons
+5. **Practical Application**: Show how they can use or apply this knowledge
+6. **Learning Tips**: Offer specific study strategies related to this topic
+7. **Follow-up Encouragement**: End with an engaging question or suggestion for deeper learning
+
+Tone: Friendly, patient, and enthusiastic about teaching
+Length: 250-400 words for thorough coverage
+Structure: Use clear paragraphs, bold key terms, and organized formatting
+
+Make complex topics feel accessible and interesting!`;
 }
 
 function generateWelcomePrompt(data: StudyBuddyRequest): string {
@@ -196,52 +210,107 @@ Be caring and encouraging!`;
 function generateContentQuestionPrompt(data: StudyBuddyRequest): string {
   const { userMessage = '', userName = 'Student', context = '' } = data;
 
-  return `You are an AI Study Buddy helping a student understand generated content. The student (${userName}) asked: "${userMessage}"
+  return `You are an expert AI Study Buddy answering ${userName}'s specific question about their study material.
 
-Context about the generated content: ${context}
+Student's Question: "${userMessage}"
+Study Material Context: ${context}
 
-Please provide a helpful, specific answer that:
-- Directly addresses their question about the content
-- Uses the provided context to give accurate information
-- Explains concepts clearly and simply
-- Encourages further learning
-- Keep it under 200 words
+Provide a thorough, well-organized answer:
 
-Be the perfect study companion who makes complex topics understandable!`;
+1. **Direct Answer**: Start with a clear, concise answer (1-2 sentences)
+
+2. **Detailed Explanation**:
+   - Address all parts of their question
+   - Define any technical terms
+   - Break down complex points logically
+   - Use numbered points for multi-part answers
+
+3. **Context Connection**: Show how this relates to the broader material they're studying
+
+4. **Clarifying Examples**: Provide 1-2 concrete examples that illustrate your answer
+
+5. **Common Pitfalls**: Mention what students often misunderstand about this
+
+6. **Deeper Insight**: Add one interesting related fact or perspective
+
+7. **Follow-up Prompt**: End with: "Does this answer your question, or would you like me to clarify any part?"
+
+Style Requirements:
+- Be conversational but precise
+- Use clear, logical structure
+- Bold important terms or key points
+- Show enthusiasm for their curiosity
+
+Length: 250-350 words for comprehensive coverage
+
+Make them feel heard and thoroughly helped! 🎯`;
 }
 
 function generateContentExplainPrompt(data: StudyBuddyRequest): string {
   const { userMessage = '', userName = 'Student', context = '' } = data;
 
-  return `You are an AI Study Buddy explaining complex concepts from generated content to a student (${userName}).
+  return `You are an expert AI Study Buddy providing an in-depth explanation to ${userName}.
 
-Generated content context: ${context}
+Content to explain: ${context}
+${userMessage ? `Specific focus: ${userMessage}` : ''}
 
-The student wants a deeper explanation. Please provide:
-- Break down complex ideas into simpler parts
-- Use analogies or real-world examples
-- Connect concepts to what they might already know
-- Make it conversational and encouraging
-- Keep it under 250 words
+Provide a comprehensive, crystal-clear explanation with this structure:
 
-Make learning enjoyable and accessible!`;
+1. **The Big Picture**: Start with a simple overview sentence
+2. **Core Concept Breakdown**: 
+   - Define key terms clearly
+   - Break complex ideas into 3-5 digestible parts
+   - Use bullet points for clarity
+3. **Real-World Analogies**: Use at least 2 relatable analogies or metaphors
+4. **Step-by-Step Process**: If applicable, show the logical flow or sequence
+5. **Common Misconceptions**: Address potential confusion points
+6. **Connections**: Link to concepts they likely already understand
+7. **Memory Aids**: Suggest mnemonics or visualization techniques
+
+Style:
+- Use everyday language, avoid unnecessary jargon
+- Include concrete examples from daily life
+- Build from simple to complex gradually
+- Be conversational but precise
+
+Length: 300-450 words for thorough understanding
+
+Your goal: Make them say "Aha! Now I get it!" 💡`;
 }
 
 function generateContentExamplesPrompt(data: StudyBuddyRequest): string {
   const { userMessage = '', userName = 'Student', context = '' } = data;
 
-  return `You are an AI Study Buddy providing practical examples for concepts in generated content to student (${userName}).
+  return `You are an AI Study Buddy providing vivid, practical examples to ${userName}.
 
-Generated content context: ${context}
+Concept/Content: ${context}
+${userMessage ? `Focus area: ${userMessage}` : ''}
 
-Please provide:
-- 2-3 real-world examples that illustrate the concepts
-- Step-by-step applications
-- Practical scenarios they might encounter
-- Make examples relatable and memorable
-- Keep it under 200 words
+Provide 3-4 comprehensive real-world examples:
 
-Help them see how theory applies to real life!`;
+For EACH example:
+1. **Scenario Title**: Give it a catchy, memorable name
+2. **Context Setup**: Describe the real-world situation (1-2 sentences)
+3. **Application**: Show exactly how the concept applies step-by-step
+4. **Key Insight**: Highlight what makes this example valuable
+5. **Variation**: Mention how it could work differently in another context
+
+Example Types to Include:
+- Everyday life situations (relatable to students)
+- Current events or technology applications
+- Historical examples (if relevant)
+- Hypothetical but realistic scenarios
+
+Make examples:
+✓ Specific and detailed (not vague)
+✓ Diverse across different domains
+✓ Progressive in complexity
+✓ Memorable with interesting details
+
+Length: 300-400 words
+Tone: Engaging storyteller who brings concepts to life
+
+Show them why this matters in the real world! 🌍`;
 }
 
 function generateContentQuizPrompt(data: StudyBuddyRequest): string {
@@ -399,9 +468,15 @@ Be specific, actionable, and encouraging. Under 120 words.`;
     const message = await callGeminiForStudyBuddy(prompt);
     console.log('✅ Received message from Gemini, length:', message.length);
 
+    // Check if this is a fallback response and enhance it with context
+    const isFallback = message.length < 100 && (message.includes('great question') || message.includes('curious'));
+    const finalMessage = (isFallback && context) 
+      ? getFallbackResponse(type, context, userMessage)
+      : message;
+
     const response: StudyBuddyResponse = {
       success: true,
-      message,
+      message: finalMessage,
       emotion,
       suggestions: type === 'help' ? [
         'Break down complex topics into smaller parts',
@@ -416,10 +491,19 @@ Be specific, actionable, and encouraging. Under 120 words.`;
   } catch (error) {
     console.error('💥 Study Buddy API Error:', error);
 
+    // Extract context from request body if available
+    let context: string | undefined;
+    try {
+      const body = await request.json();
+      context = body.context;
+    } catch {
+      // If we can't parse the body, continue without context
+    }
+
     // Return fallback response with error details
     const fallbackResponse: StudyBuddyResponse = {
       success: true,
-      message: getFallbackResponse('response'),
+      message: getFallbackResponse('response', context, undefined),
       emotion: 'encouraging',
       error: error instanceof Error ? error.message : 'Unknown error'
     };

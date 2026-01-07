@@ -37,6 +37,7 @@ export const useLiveStats = () => {
             'Content-Type': 'application/json',
             ...AuthService.getAuthHeader(),
           },
+          signal: AbortSignal.timeout(5000), // 5 second timeout
         });
         
         if (response.ok) {
@@ -46,11 +47,12 @@ export const useLiveStats = () => {
           // Invalid token, clear it and stop fetching
           console.log('Invalid token, clearing authentication');
           AuthService.logout();
-          // Don't throw error, just silently fail
         }
-      } catch (error) {
-        // Network error or other issues - fail silently
-        console.error('Failed to fetch stats (this is normal if not logged in):', error);
+      } catch (error: any) {
+        // Silently fail on network errors or timeouts
+        if (error?.name !== 'AbortError' && error?.name !== 'TimeoutError') {
+          console.debug('Stats fetch skipped:', error.message);
+        }
       }
     };
 
