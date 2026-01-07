@@ -168,19 +168,11 @@ export default function Dashboard() {
       
       // Show user-friendly error messages with solutions
       if (errorMessage.includes('quota exceeded') || errorMessage.includes('429')) {
-        toast.error('📊 Daily API limit reached (20 requests/day free tier). Your fallback content is ready!', {
-          duration: 5000,
-          description: 'Upgrade at https://aistudio.google.com to get unlimited requests'
-        });
+        toast.error('📊 Daily API limit reached (20/day). Using fallback content generator.');
       } else if (errorMessage.includes('503') || errorMessage.includes('overloaded') || errorMessage.includes('Unavailable')) {
-        toast.error('🔄 Gemini API is temporarily busy. Retrying...', {
-          duration: 3000,
-          description: 'Try again in 30 seconds'
-        });
+        toast.error('🔄 API temporarily busy. Retrying in 30 seconds...');
       } else if (errorMessage.includes('timeout')) {
-        toast.error('⏱️ Request timed out. Try with shorter content.', {
-          duration: 4000
-        });
+        toast.error('⏱️ Request timed out. Try with shorter content.');
       } else {
         toast.error('Error: ' + errorMessage.slice(0, 100));
       }

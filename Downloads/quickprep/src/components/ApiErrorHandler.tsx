@@ -1,7 +1,30 @@
 'use client';
 
 import React from 'react';
-import { AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
+
+interface ApiErrorHandlerProps {
+  errorType: 'quota' | 'overload' | 'timeout' | 'network' | 'unknown';
+  isRetrying?: boolean;
+  onRetry?: () => void;
+}
+
+const AlertIcon = () => (
+  <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 0v2m0-6V9m0 0V7a2 2 0 012-2h2.586a1 1 0 00.707-.293l-2.414-2.414a1 1 0 00-.707-.293H12a2 2 0 00-2 2v2m0 0H8a2 2 0 00-2 2v6a2 2 0 002 2h8a2 2 0 002-2V9a2 2 0 00-2-2h-2" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+);
+
+const ExternalLinkIcon = () => (
+  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4m-4-6l6-6m0 0L21 3m0 0v6m0-6H15" />
+  </svg>
+);
 
 interface ApiErrorHandlerProps {
   errorType: 'quota' | 'overload' | 'timeout' | 'network' | 'unknown';
@@ -68,7 +91,7 @@ export default function ApiErrorHandler({
   return (
     <div className={`${config.color} border rounded-lg p-6 my-4`}>
       <div className="flex items-start gap-3">
-        <AlertCircle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
+        <AlertIcon />
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900 mb-1">{config.title}</h3>
           <p className="text-gray-700 text-sm mb-4">{config.description}</p>
@@ -85,7 +108,7 @@ export default function ApiErrorHandler({
                     className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
                   >
                     {solution.text}
-                    <ExternalLink className="w-3 h-3" />
+                    <ExternalLinkIcon />
                   </a>
                 ) : (
                   <span className="text-gray-700 text-sm">{solution.text}</span>
@@ -102,12 +125,12 @@ export default function ApiErrorHandler({
             >
               {isRetrying ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <RefreshIcon />
                   Retrying...
                 </>
               ) : (
                 <>
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshIcon />
                   Try Again
                 </>
               )}
