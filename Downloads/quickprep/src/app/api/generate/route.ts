@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GenerateRequest, GenerateResponse, Flashcard, Quiz, MindMap } from '../../../types/ai';
+import { GenerateRequest, GenerateResponse, Flashcard, Quiz, MindMap, MindMapNode } from '../../../types/ai';
 import { buildPrompt } from '../../../utils/prompts';
 import { withAuth } from '@/lib/authMiddleware';
 import db from '@/lib/sqlite';
@@ -316,7 +316,7 @@ export async function POST(req: NextRequest) {
           .slice(0, 20);
         
         // Create structured fallback with actual content
-        const createFallbackBranch = (topic: string, index: number) => {
+        const createFallbackBranch = (topic: string, index: number): MindMapNode => {
           const words = topic.trim().split(' ');
           const label = words.slice(0, 5).join(' ');
           const description = words.slice(0, 15).join(' ');
@@ -326,7 +326,7 @@ export async function POST(req: NextRequest) {
             label: label || `Concept ${index + 1}`,
             description: description || topic.substring(0, 100),
             icon: ['concept', 'definition', 'example', 'process', 'important'][index % 5],
-            children: []
+            children: [] as MindMapNode[]
           };
         };
         
